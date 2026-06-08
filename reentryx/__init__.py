@@ -1,2 +1,11 @@
-"""REENTRYX — Static + symbolic detector that flags reentrancy, cross-function, and read-only reentrancy paths in Solidity/Vyper with CI-gating SARIF output."""
-__version__ = "0.1.0"
+"""reentryx — part of the Cognis Neural Suite."""
+try:  # re-export the tool's public API + identity from core
+    from reentryx.core import *  # noqa: F401,F403
+except Exception:  # pragma: no cover
+    pass
+try:
+    from reentryx.core import TOOL_NAME, TOOL_VERSION
+except Exception:  # pragma: no cover
+    TOOL_NAME = "reentryx"
+    TOOL_VERSION = "0.1.0"
+__version__ = TOOL_VERSION
