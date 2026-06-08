@@ -1,0 +1,10 @@
+{
+  "name": "@cognis/reentryx",
+  "version": "0.2.0",
+  "description": "JavaScript port of reentryx (Cognis Neural Suite)",
+  "bin": {
+    "reentryx": "index.js"
+  },
+  "license": "LicenseRef-COCL-1.0",
+  "type": "module"
+}
