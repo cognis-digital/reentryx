@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: reentryx, labels: { app: reentryx } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: reentryx } }
+  template:
+    metadata: { labels: { app: reentryx } }
+    spec:
+      containers:
+        - name: reentryx
+          image: ghcr.io/cognis-digital/reentryx:latest
+          ports: [{ containerPort: 8000 }]
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: reentryx }
+spec:
+  selector: { app: reentryx }
+  ports: [{ port: 80, targetPort: 8000 }]
