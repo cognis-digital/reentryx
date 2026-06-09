@@ -1,11 +1,43 @@
-"""reentryx — part of the Cognis Neural Suite."""
-try:  # re-export the tool's public API + identity from core
-    from reentryx.core import *  # noqa: F401,F403
-except Exception:  # pragma: no cover
-    pass
-try:
-    from reentryx.core import TOOL_NAME, TOOL_VERSION
-except Exception:  # pragma: no cover
-    TOOL_NAME = "reentryx"
-    TOOL_VERSION = "0.1.0"
-__version__ = TOOL_VERSION
+"""REENTRYX — Solidity reentrancy & high-impact vulnerability analyzer.
+
+A standard-library static analyzer for Solidity source, in the spirit of
+crytic/slither. Detects classic state-after-call reentrancy, cross-function
+reentrancy, read-only reentrancy, unchecked low-level calls, tx.origin
+authentication, and dangerous delegatecall — modeling modifier bodies as
+first-class units (where auth/guard logic usually lives). Emits table, JSON,
+and SARIF 2.1.0.
+
+Defensive analysis only: pure static inspection of source you provide. No
+network access, no bytecode execution, no attack capability.
+"""
+from .core import (
+    Finding,
+    Report,
+    Severity,
+    RULES,
+    analyze,
+    analyze_file,
+    render_table,
+    render_json,
+    render_sarif,
+    strip_comments,
+    parse,
+    TOOL_NAME,
+    TOOL_VERSION,
+)
+
+__all__ = [
+    "Finding",
+    "Report",
+    "Severity",
+    "RULES",
+    "analyze",
+    "analyze_file",
+    "render_table",
+    "render_json",
+    "render_sarif",
+    "strip_comments",
+    "parse",
+    "TOOL_NAME",
+    "TOOL_VERSION",
+]

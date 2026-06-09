@@ -1,4 +1,5 @@
-from reentryx.cli import main
-import sys
+"""Entry point so `python -m reentryx` works."""
+from .cli import main
 
-sys.exit(main())
+if __name__ == "__main__":
+    raise SystemExit(main())

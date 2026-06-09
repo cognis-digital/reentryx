@@ -1,21 +1,4 @@
-"""Command-line interface for REENTRYX.
-
-Examples
---------
-  # Scan one or more Solidity files, human-readable table:
-  reentryx scan contracts/Vault.sol
-
-  # JSON output for piping into jq / CI:
-  reentryx scan contracts/*.sol --format json
-
-  # SARIF for GitHub code scanning:
-  reentryx scan src/ --format sarif -o reentryx.sarif
-
-Exit codes:
-  0  no findings
-  1  one or more findings (use for CI gates)
-  2  usage / IO error
-"""
+"""Command-line interface for REENTRYX."""
 from __future__ import annotations
 
 import argparse
@@ -25,114 +8,137 @@ from typing import List, Optional
 
 from . import TOOL_NAME, TOOL_VERSION
 from .core import (
-    Finding,
-    analyze_file,
-    findings_to_json,
-    findings_to_sarif,
+    RULES,
+    analyze,
+    render_table,
+    render_json,
+    render_sarif,
 )
 
-_LEVEL_TAG = {"error": "ERROR ", "warning": "WARN  ", "note": "NOTE  "}
-
-
-def _gather_sol_files(paths: List[str]) -> List[str]:
-    out: List[str] = []
-    for p in paths:
-        if os.path.isdir(p):
-            for root, _dirs, files in os.walk(p):
-                for name in sorted(files):
-                    if name.endswith(".sol"):
-                        out.append(os.path.join(root, name))
-        else:
-            out.append(p)
-    return out
-
-
-def _render_table(findings: List[Finding]) -> str:
-    if not findings:
-        return "No reentrancy issues found."
-    lines = []
-    for f in findings:
-        tag = _LEVEL_TAG.get(f.level, f.level.upper())
-        lines.append(f"{tag} {f.rule_id} {f.filename}:{f.line}  [{f.function}]")
-        lines.append(f"        {f.message}")
-        if f.snippet:
-            lines.append(f"        > {f.snippet}")
-    n = len(findings)
-    lines.append("")
-    lines.append(f"{n} finding{'s' if n != 1 else ''}.")
-    return "\n".join(lines)
+SOL_EXTS = (".sol",)
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    p = argparse.ArgumentParser(
         prog=TOOL_NAME,
-        description="Static detector for reentrancy and read-only reentrancy in Solidity.",
-        epilog="Example: reentryx scan contracts/ --format sarif -o out.sarif",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Detect reentrancy and high-impact Solidity "
+                    "vulnerabilities (read-only / cross-function / classic "
+                    "reentrancy, unchecked-call, tx.origin, delegatecall).",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"{TOOL_NAME} {TOOL_VERSION}"
-    )
-    sub = parser.add_subparsers(dest="command")
+    p.add_argument("--version", action="version",
+                   version=f"{TOOL_NAME} {TOOL_VERSION}")
+    sub = p.add_subparsers(dest="command")
 
-    scan = sub.add_parser(
-        "scan",
-        help="Scan Solidity files or directories for reentrancy issues.",
-        description="Scan one or more .sol files (or directories) for reentrancy.",
-    )
-    scan.add_argument("paths", nargs="+", help=".sol files or directories to scan")
-    scan.add_argument(
-        "--format",
-        choices=["table", "json", "sarif"],
-        default="table",
-        help="output format (default: table)",
-    )
-    scan.add_argument(
-        "-o", "--output", help="write output to a file instead of stdout"
-    )
-    return parser
+    scan = sub.add_parser("scan", help="Scan Solidity file(s) or directories.")
+    scan.add_argument("paths", nargs="+",
+                      help="Solidity files and/or directories to scan.")
+    scan.add_argument("--format", choices=["table", "json", "sarif"],
+                      default="table", help="Output format (default: table).")
+    scan.add_argument("--only", action="append", default=None,
+                      metavar="RULE_ID",
+                      help="Restrict to specific rule id(s); repeatable.")
+    scan.add_argument("-o", "--output",
+                      help="Write report to this file instead of stdout.")
+    scan.add_argument("--exit-zero", action="store_true",
+                      help="Always exit 0, even when findings are present.")
+
+    rules = sub.add_parser("rules", help="List the detector knowledge base.")
+    rules.add_argument("--format", choices=["table", "json"], default="table")
+
+    return p
+
+
+def _collect_files(paths: List[str]) -> List[str]:
+    files: List[str] = []
+    for path in paths:
+        if os.path.isdir(path):
+            for root, _dirs, names in os.walk(path):
+                for n in names:
+                    if n.endswith(SOL_EXTS):
+                        files.append(os.path.join(root, n))
+        else:
+            files.append(path)
+    return sorted(set(files))
+
+
+def _run_scan(args) -> int:
+    files = _collect_files(args.paths)
+    if not files:
+        print("error: no .sol files found", file=sys.stderr)
+        return 2
+
+    all_findings = []
+    contracts = funcs = 0
+    reports = []
+    for fp in files:
+        try:
+            with open(fp, "r", encoding="utf-8") as fh:
+                src = fh.read()
+        except OSError as exc:
+            print(f"error: cannot read {fp}: {exc}", file=sys.stderr)
+            return 2
+        rep = analyze(src, source_name=fp, only=args.only)
+        reports.append(rep)
+        all_findings.extend(rep.findings)
+        contracts += rep.contracts
+        funcs += rep.functions
+
+    # Build a combined report for rendering.
+    from .core import Report
+    if len(reports) == 1:
+        combined = reports[0]
+    else:
+        combined = Report(
+            source=f"{len(files)} files",
+            findings=sorted(
+                all_findings,
+                key=lambda f: (f.severity, f.contract, f.line, f.rule_id),
+            ),
+            contracts=contracts,
+            functions=funcs,
+        )
+
+    if args.format == "json":
+        out = render_json(combined)
+    elif args.format == "sarif":
+        out = render_sarif(combined)
+    else:
+        out = render_table(combined)
+
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            fh.write(out + "\n")
+        print(f"wrote {args.output} ({len(all_findings)} findings)")
+    else:
+        print(out)
+
+    if args.exit_zero:
+        return 0
+    return 1 if combined.has_failures else 0
+
+
+def _run_rules(args) -> int:
+    if args.format == "json":
+        import json
+        print(json.dumps(RULES, indent=2))
+        return 0
+    print(f"{TOOL_NAME} {TOOL_VERSION} — detector knowledge base\n")
+    for rid, meta in RULES.items():
+        print(f"  {rid:14} [{meta['severity'].upper():6}] {meta['title']}")
+    print(f"\n  {len(RULES)} rules.")
+    return 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-
-    if args.command != "scan":
-        parser.print_help()
-        return 2
-
-    files = _gather_sol_files(args.paths)
-    if not files:
-        sys.stderr.write("error: no .sol files found in given paths\n")
-        return 2
-
-    all_findings: List[Finding] = []
-    for path in files:
-        try:
-            all_findings.extend(analyze_file(path))
-        except OSError as exc:
-            sys.stderr.write(f"error: cannot read {path}: {exc}\n")
-            return 2
-
-    if args.format == "json":
-        out = findings_to_json(all_findings)
-    elif args.format == "sarif":
-        out = findings_to_sarif(all_findings, TOOL_NAME, TOOL_VERSION)
-    else:
-        out = _render_table(all_findings)
-
-    if args.output:
-        try:
-            with open(args.output, "w", encoding="utf-8") as fh:
-                fh.write(out + "\n")
-        except OSError as exc:
-            sys.stderr.write(f"error: cannot write {args.output}: {exc}\n")
-            return 2
-    else:
-        sys.stdout.write(out + "\n")
-
-    return 1 if all_findings else 0
+    if args.command == "scan":
+        return _run_scan(args)
+    if args.command == "rules":
+        return _run_rules(args)
+    parser.print_help()
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
