@@ -16,7 +16,7 @@
 </div>
 
 ```bash
-pip install cognis-reentryx
+pip install "git+https://github.com/cognis-digital/reentryx.git"
 reentryx scan .            # → prioritized findings in seconds
 ```
 
@@ -49,7 +49,7 @@ Read-only reentrancy is the 2023-2025 exploit class most linters still miss; a f
 ## Quick start
 
 ```bash
-pip install cognis-reentryx
+pip install "git+https://github.com/cognis-digital/reentryx.git"
 reentryx --version
 reentryx scan .                       # scan current project
 reentryx scan . --format json         # machine-readable
