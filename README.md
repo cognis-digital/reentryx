@@ -16,9 +16,15 @@
 </div>
 
 ```bash
-pip install cognis-reentryx
+pip install "git+https://github.com/cognis-digital/reentryx.git"
 reentryx scan .            # → prioritized findings in seconds
 ```
+
+<!-- cognis:layman:start -->
+## What is this?
+
+Reentryx is a security scanner for Solidity smart contracts — the programs that run on blockchains like Ethereum and hold real money. It reads your contract source code and automatically finds the class of bugs responsible for hundreds of millions in DeFi hacks: reentrancy vulnerabilities, where an attacker can call back into your contract before it finishes updating its own records. Point it at a file or directory, get a ranked list of issues in seconds, and pipe the results into your CI pipeline or AI agent — no account, no network calls, no setup beyond a pip install.
+<!-- cognis:layman:end -->
 
 ## Contents
 
@@ -46,10 +52,56 @@ Read-only reentrancy is the 2023-2025 exploit class most linters still miss; a f
 <div align="right"><a href="#top">↑ back to top</a></div>
 
 <a name="quick-start"></a>
+<!-- cognis:domains:start -->
+## Domains
+
+**Primary domain:** Finance & Quant  ·  **JTF MERIDIAN division:** BLACKBOOK · ORACLE
+
+**Topics:** `cognis` `finance` `fintech` `quant`
+
+Part of the **Cognis Neural Suite** — 300+ source-available tools organized across 12 domains under the JTF MERIDIAN command structure. See the [suite on GitHub](https://github.com/cognis-digital) and [jtf-meridian](https://github.com/cognis-digital/jtf-meridian) for how the pieces fit together.
+<!-- cognis:domains:end -->
+
+<!-- cognis:install:start -->
+## Install
+
+`reentryx` is source-available (not published to PyPI) — every method below installs
+straight from GitHub. Pick whichever you prefer; the one-line scripts auto-detect
+the best tool available on your machine.
+
+**One-liner (Linux / macOS):**
+```sh
+curl -fsSL https://raw.githubusercontent.com/cognis-digital/reentryx/HEAD/install.sh | sh
+```
+
+**One-liner (Windows PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/cognis-digital/reentryx/HEAD/install.ps1 | iex
+```
+
+**Or install manually — any one of:**
+```sh
+pipx install "git+https://github.com/cognis-digital/reentryx.git"     # isolated (recommended)
+uv tool install "git+https://github.com/cognis-digital/reentryx.git"  # uv
+pip install "git+https://github.com/cognis-digital/reentryx.git"      # pip
+```
+
+**From source:**
+```sh
+git clone https://github.com/cognis-digital/reentryx.git
+cd reentryx && pip install .
+```
+
+Then run:
+```sh
+reentryx --help
+```
+<!-- cognis:install:end -->
+
 ## Quick start
 
 ```bash
-pip install cognis-reentryx
+pip install "git+https://github.com/cognis-digital/reentryx.git"
 reentryx --version
 reentryx scan .                       # scan current project
 reentryx scan . --format json         # machine-readable

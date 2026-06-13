@@ -10,10 +10,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from reentryx import (  # noqa: E402
     TOOL_NAME,
     TOOL_VERSION,
-    analyze_source,
+    analyze,
     analyze_file,
-    findings_to_json,
-    findings_to_sarif,
+    render_json,
+    render_sarif,
 )
 from reentryx.cli import main  # noqa: E402
 
@@ -28,27 +28,30 @@ def test_metadata():
 
 
 def test_demo_classic_reentrancy_flagged():
-    findings = analyze_file(DEMO)
-    rx001 = [f for f in findings if f.rule_id == "RX001"]
-    assert rx001, "expected at least one classic reentrancy finding"
+    report = analyze_file(DEMO)
+    findings = report.findings
+    rex_reen = [f for f in findings if f.rule_id == "REX-REEN"]
+    assert rex_reen, "expected at least one classic reentrancy finding"
     # the vulnerable function is 'withdraw' and the var is 'balances'
-    assert any(f.function == "withdraw" for f in rx001)
-    assert any("balances" in f.message for f in rx001)
+    assert any(f.function == "withdraw" for f in rex_reen)
+    assert any("balances" in f.detail for f in rex_reen)
 
 
-def test_safe_withdraw_not_flagged_rx001():
-    findings = analyze_file(DEMO)
+def test_safe_withdraw_not_flagged_rex_reen():
+    report = analyze_file(DEMO)
+    findings = report.findings
     assert not any(
-        f.rule_id == "RX001" and f.function == "safeWithdraw" for f in findings
+        f.rule_id == "REX-REEN" and f.function == "safeWithdraw" for f in findings
     ), "safeWithdraw follows checks-effects-interactions and must not be flagged"
 
 
 def test_read_only_reentrancy_flagged():
-    findings = analyze_file(DEMO)
-    rx002 = [f for f in findings if f.rule_id == "RX002"]
-    assert rx002, "expected a read-only reentrancy finding"
-    assert any(f.function == "getTotalShares" for f in rx002)
-    assert any("totalShares" in f.message for f in rx002)
+    report = analyze_file(DEMO)
+    findings = report.findings
+    rex_rore = [f for f in findings if f.rule_id == "REX-RORE"]
+    assert rex_rore, "expected a read-only reentrancy finding"
+    assert any(f.function == "getTotalShares" for f in rex_rore)
+    assert any("totalShares" in f.detail for f in rex_rore)
 
 
 def test_clean_contract_no_findings():
@@ -63,11 +66,11 @@ def test_clean_contract_no_findings():
         }
     }
     """
-    findings = analyze_source(clean, filename="Clean.sol")
-    assert not any(f.rule_id == "RX001" for f in findings)
+    report = analyze(clean, source_name="Clean.sol")
+    assert not any(f.rule_id == "REX-REEN" for f in report.findings)
 
 
-def test_nonreentrant_guard_suppresses_rx001():
+def test_nonreentrant_guard_suppresses_rex_reen():
     guarded = """
     pragma solidity ^0.8.20;
     contract Guarded {
@@ -79,23 +82,25 @@ def test_nonreentrant_guard_suppresses_rx001():
         }
     }
     """
-    findings = analyze_source(guarded, filename="Guarded.sol")
-    assert not any(f.rule_id == "RX001" for f in findings)
+    report = analyze(guarded, source_name="Guarded.sol")
+    assert not any(f.rule_id == "REX-REEN" for f in report.findings)
 
 
 def test_json_output_is_valid():
-    findings = analyze_file(DEMO)
-    parsed = json.loads(findings_to_json(findings))
-    assert isinstance(parsed, list)
-    assert all("rule_id" in item and "line" in item for item in parsed)
+    report = analyze_file(DEMO)
+    parsed = json.loads(render_json(report))
+    assert isinstance(parsed, dict)
+    assert "findings" in parsed
+    assert isinstance(parsed["findings"], list)
+    assert all("rule_id" in item and "line" in item for item in parsed["findings"])
 
 
 def test_sarif_output_is_valid():
-    findings = analyze_file(DEMO)
-    doc = json.loads(findings_to_sarif(findings, TOOL_NAME, TOOL_VERSION))
+    report = analyze_file(DEMO)
+    doc = json.loads(render_sarif(report))
     assert doc["version"] == "2.1.0"
     assert doc["runs"][0]["tool"]["driver"]["name"] == TOOL_NAME
-    assert len(doc["runs"][0]["results"]) == len(findings)
+    assert len(doc["runs"][0]["results"]) == len(report.findings)
 
 
 def test_cli_exit_nonzero_on_findings(capsys):
@@ -103,7 +108,8 @@ def test_cli_exit_nonzero_on_findings(capsys):
     assert rc == 1
     out = capsys.readouterr().out
     data = json.loads(out)
-    assert any(item["rule_id"] == "RX001" for item in data)
+    assert isinstance(data, dict)
+    assert any(item["rule_id"] == "REX-REEN" for item in data["findings"])
 
 
 def test_cli_exit_zero_on_clean(tmp_path, capsys):
@@ -117,7 +123,7 @@ def test_cli_exit_zero_on_clean(tmp_path, capsys):
     )
     rc = main(["scan", str(p), "--format", "table"])
     assert rc == 0
-    assert "No reentrancy issues found." in capsys.readouterr().out
+    assert "No findings. Clean." in capsys.readouterr().out
 
 
 def test_cli_version(capsys):
