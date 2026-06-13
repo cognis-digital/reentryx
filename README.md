@@ -20,6 +20,40 @@ pip install cognis-reentryx
 reentryx scan .            # → prioritized findings in seconds
 ```
 
+## Usage — step by step
+
+1. **Install** (Python 3.9+):
+
+   ```bash
+   pip install reentryx            # or: pipx install reentryx
+   ```
+
+2. **Scan Solidity sources.** Point `scan` at one or more files or directories:
+
+   ```bash
+   reentryx scan contracts/
+   ```
+
+3. **Narrow detectors and emit a machine-readable report.** Use `--only` to run specific rules and `--format` for `table`, `json`, or `sarif`:
+
+   ```bash
+   reentryx scan contracts/Vault.sol --only reentrancy --format json -o findings.json
+   ```
+
+4. **Read the result.** Each finding carries a detector id, severity, and source location. The `sarif` format uploads directly to code-scanning dashboards; the process exits non-zero when findings are present (use `--exit-zero` to suppress that).
+
+5. **Browse the knowledge base** to see which detectors exist:
+
+   ```bash
+   reentryx rules --format table
+   ```
+
+6. **Gate in CI.** Emit SARIF for GitHub code scanning and fail the build on any finding:
+
+   ```bash
+   reentryx scan contracts/ --format sarif -o reentryx.sarif
+   ```
+
 ## Contents
 
 - [Why reentryx?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
