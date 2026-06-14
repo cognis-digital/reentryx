@@ -34,3 +34,6 @@ reentryx = "reentryx.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["reentryx"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
