@@ -1,6 +1,7 @@
-"""REENTRYX MCP server — exposes scan() as an MCP tool for Cognis.Studio."""
+"""REENTRYX MCP server — exposes analyze_file() as an MCP tool."""
 from __future__ import annotations
-from reentryx.core import scan, to_json
+import sys
+
 
 def serve() -> int:
     """Start an MCP stdio server. Requires the optional 'mcp' extra:
@@ -8,15 +9,31 @@ def serve() -> int:
     """
     try:
         from mcp.server.fastmcp import FastMCP
-    except Exception:
-        print("Install the MCP extra: pip install 'cognis-reentryx[mcp]'")
+    except ImportError:
+        print(
+            "Install the MCP extra: pip install 'cognis-reentryx[mcp]'",
+            file=sys.stderr,
+        )
         return 1
+
+    from reentryx.core import analyze_file, render_json
+
     app = FastMCP("reentryx")
 
     @app.tool()
     def reentryx_scan(target: str) -> str:
-        """Static + symbolic detector that flags reentrancy, cross-function, and read-only reentrancy paths in Solidity/Vyper with CI-gating SARIF output.. Returns JSON findings."""
-        return to_json(scan(target))
+        """Scan a Solidity file for reentrancy and high-impact vulnerabilities.
+
+        Returns JSON findings (reentrancy, cross-function, read-only reentrancy,
+        unchecked calls, tx.origin, delegatecall).
+        """
+        if not target or not target.strip():
+            return '{"error": "target path must not be empty"}'
+        try:
+            rep = analyze_file(target)
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            return f'{{"error": "{exc}"}}'
+        return render_json(rep)
 
     app.run()
     return 0

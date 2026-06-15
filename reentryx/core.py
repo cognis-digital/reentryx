@@ -845,8 +845,15 @@ def analyze(src: str, source_name: str = "<source>",
 
 
 def analyze_file(path: str, only: Optional[Iterable[str]] = None) -> Report:
-    with open(path, "r", encoding="utf-8") as fh:
-        src = fh.read()
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Solidity file not found: {path!r}") from None
+    except PermissionError:
+        raise PermissionError(f"Permission denied reading: {path!r}") from None
+    except OSError as exc:
+        raise OSError(f"Cannot read {path!r}: {exc}") from exc
     return analyze(src, source_name=path, only=only)
 
 

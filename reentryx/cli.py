@@ -56,7 +56,16 @@ def _collect_files(paths: List[str]) -> List[str]:
                 for n in names:
                     if n.endswith(SOL_EXTS):
                         files.append(os.path.join(root, n))
+        elif not os.path.exists(path):
+            print(f"error: path not found: {path}", file=sys.stderr)
+            sys.exit(2)
         else:
+            if not path.endswith(SOL_EXTS):
+                print(
+                    f"warning: {path!r} does not look like a Solidity file "
+                    f"(.sol); scanning anyway",
+                    file=sys.stderr,
+                )
             files.append(path)
     return sorted(set(files))
 
@@ -67,21 +76,42 @@ def _run_scan(args) -> int:
         print("error: no .sol files found", file=sys.stderr)
         return 2
 
+    # Validate --only rule IDs up front so the user gets a clear error.
+    if args.only:
+        unknown = [r for r in args.only if r.upper() not in RULES]
+        if unknown:
+            print(
+                f"error: unknown rule id(s): {', '.join(unknown)}. "
+                f"Valid ids: {', '.join(sorted(RULES))}",
+                file=sys.stderr,
+            )
+            return 2
+
     all_findings = []
     contracts = funcs = 0
     reports = []
     for fp in files:
         try:
-            with open(fp, "r", encoding="utf-8") as fh:
+            with open(fp, "r", encoding="utf-8", errors="replace") as fh:
                 src = fh.read()
         except OSError as exc:
             print(f"error: cannot read {fp}: {exc}", file=sys.stderr)
             return 2
+        if not src.strip():
+            print(
+                f"warning: {fp!r} is empty; skipping",
+                file=sys.stderr,
+            )
+            continue
         rep = analyze(src, source_name=fp, only=args.only)
         reports.append(rep)
         all_findings.extend(rep.findings)
         contracts += rep.contracts
         funcs += rep.functions
+
+    if not reports:
+        print("error: no non-empty .sol files to scan", file=sys.stderr)
+        return 2
 
     # Build a combined report for rendering.
     from .core import Report
@@ -106,9 +136,16 @@ def _run_scan(args) -> int:
         out = render_table(combined)
 
     if args.output:
-        with open(args.output, "w", encoding="utf-8") as fh:
-            fh.write(out + "\n")
-        print(f"wrote {args.output} ({len(all_findings)} findings)")
+        try:
+            with open(args.output, "w", encoding="utf-8") as fh:
+                fh.write(out + "\n")
+            print(f"wrote {args.output} ({len(all_findings)} findings)")
+        except OSError as exc:
+            print(
+                f"error: cannot write output file {args.output!r}: {exc}",
+                file=sys.stderr,
+            )
+            return 2
     else:
         print(out)
 
@@ -132,12 +169,19 @@ def _run_rules(args) -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    if args.command == "scan":
-        return _run_scan(args)
-    if args.command == "rules":
-        return _run_rules(args)
-    parser.print_help()
-    return 0
+    try:
+        if args.command == "scan":
+            return _run_scan(args)
+        if args.command == "rules":
+            return _run_rules(args)
+        parser.print_help()
+        return 0
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        return 130
+    except Exception as exc:  # noqa: BLE001
+        print(f"error: unexpected failure: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
