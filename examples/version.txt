@@ -1,0 +1,3 @@
+$ reentryx-emit --version
+
+reentryx 2.1.0

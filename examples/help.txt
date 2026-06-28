@@ -1,0 +1,15 @@
+$ reentryx-emit --help
+
+usage: reentryx [-h] [--version] {scan,rules} ...
+
+Detect reentrancy and high-impact Solidity vulnerabilities (read-only / cross-
+function / classic reentrancy, unchecked-call, tx.origin, delegatecall).
+
+positional arguments:
+  {scan,rules}
+    scan        Scan Solidity file(s) or directories.
+    rules       List the detector knowledge base.
+
+options:
+  -h, --help    show this help message and exit
+  --version     show program's version number and exit

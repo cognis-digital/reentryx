@@ -1,0 +1,13 @@
+$ reentryx-emit rules
+
+reentryx 2.1.0 — detector knowledge base
+
+  REX-REEN       [HIGH  ] State write after external call (reentrancy)
+  REX-XFRE       [HIGH  ] Cross-function reentrancy
+  REX-RORE       [MEDIUM] Read-only reentrancy
+  REX-UCALL      [MEDIUM] Unchecked low-level call return value
+  REX-TXORG      [HIGH  ] tx.origin used for authorization
+  REX-DELEG      [HIGH  ] delegatecall into caller-controlled target
+  REX-SEND-VALUE [LOW   ] Funds-moving external call without reentrancy guard
+
+  7 rules.

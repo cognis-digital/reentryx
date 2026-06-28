@@ -20,6 +20,53 @@ pip install cognis-reentryx
 reentryx scan .            # → prioritized findings in seconds
 ```
 
+
+<!-- cognis:example:start -->
+## 🔎 Example output
+
+Real, reproducible output from the tool — runs offline:
+
+```console
+$ reentryx-emit --version
+reentryx 2.1.0
+```
+
+```console
+$ reentryx-emit --help
+usage: reentryx [-h] [--version] {scan,rules} ...
+
+Detect reentrancy and high-impact Solidity vulnerabilities (read-only / cross-
+function / classic reentrancy, unchecked-call, tx.origin, delegatecall).
+
+positional arguments:
+  {scan,rules}
+    scan        Scan Solidity file(s) or directories.
+    rules       List the detector knowledge base.
+
+options:
+  -h, --help    show this help message and exit
+  --version     show program's version number and exit
+```
+
+```console
+$ reentryx-emit rules
+reentryx 2.1.0 — detector knowledge base
+
+  REX-REEN       [HIGH  ] State write after external call (reentrancy)
+  REX-XFRE       [HIGH  ] Cross-function reentrancy
+  REX-RORE       [MEDIUM] Read-only reentrancy
+  REX-UCALL      [MEDIUM] Unchecked low-level call return value
+  REX-TXORG      [HIGH  ] tx.origin used for authorization
+  REX-DELEG      [HIGH  ] delegatecall into caller-controlled target
+  REX-SEND-VALUE [LOW   ] Funds-moving external call without reentrancy guard
+
+  7 rules.
+```
+
+> Blocks above are real `reentryx` output — reproduce them from a clone.
+
+<!-- cognis:example:end -->
+
 ## Usage — step by step
 
 1. **Install** (Python 3.9+):
